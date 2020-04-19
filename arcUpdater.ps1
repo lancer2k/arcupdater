@@ -14,24 +14,29 @@ function  newVersionAtRepo($repoUrl,$file,$pattern,$datePattern,$localVersionDat
     
 }
 
+function  newVersionAtGit($repoAPIURL, $localVersionDate){
+    #Get Date from last version of the file in the repo
+    $repoData = Invoke-WebRequest -Uri $repoAPIURL | ConvertFrom-Json
+    $lastVersionDate = [datetime]::ParseExact($repoData.commit.commit.author.date, 'yyyy-MM-ddTHH:mm:ssZ', $systemGlob)
+
+    return $localVersionDate -lt $lastVersionDate;
+    
+}
+
 $config= get-content .\arcUpdater.ini | ConvertFrom-Json
 $systemGlob = New-Object system.globalization.cultureinfo($config.ArcUpdater.culture)
 
-$repoURL = $config.ArcUpdater.repositoryURL;
-$fileName = $config.ArcUpdater.fileName;
-$pattern =  $config.ArcUpdater.htmlPattern;
-$datePattern =  $config.ArcUpdater.datePattern;
 $localVersionDate = [datetime]::ParseExact($config.ArcUpdater.versionDate, "yyyy-MM-dd HH:mm" , $systemGlob) 
 
-if (newVersionAtRepo $repoURL $fileName $pattern $datePattern $localVersionDate){
+if (newVersionAtGit $config.ArcUpdater.repositoryAPIURL $localVersionDate){
     
     $updateAnswer = [System.Windows.MessageBox]::Show($config.langResources.arcUdaterNewVersionMsgboxQuestion,$config.langResources.arcUdaterNewVersionMsgboxTitle,'YesNoCancel')
     Switch ($updateAnswer) {
         'Yes' {
-            $fileURL = "$repoURL$fileName"
-            Invoke-WebRequest -Uri $fileURL -OutFile $fileName
-            Expand-Archive -Path "$fileName" -DestinationPath "..\" -Force
-            Remove-Item $fileName
+            Invoke-WebRequest -Uri $config.ArcUpdater.repositoryZIPURL -OutFile $config.ArcUpdater.fileName
+            Expand-Archive -Path $config.ArcUpdater.fileName -DestinationPath "." -Force
+            Remove-Item $config.ArcUpdater.fileName
+            Move-Item  -path "arcupdater-master\*" -destination "." -Force
             [System.Windows.MessageBox]::Show($config.langResources.arcUdaterUpdatedMsgbox)
         }
         'Cancel' {

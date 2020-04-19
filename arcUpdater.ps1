@@ -45,8 +45,8 @@ if (newVersionAtGit $config.ArcUpdater.repositoryAPIURL $localVersionDate){
             Expand-Archive -Path $config.ArcUpdater.fileName -DestinationPath "." -Force
             Remove-Item $config.ArcUpdater.fileName
             Move-Item  -path "arcupdater-master\*" -destination "." -Force
-            $repoData = Invoke-WebRequest -Uri $repoAPIURL | ConvertFrom-Json
-            Write-Output $repoData.commit.commit.author.date  > versiondate.txt
+            $repoData = Invoke-WebRequest -Uri $config.ArcUpdater.repositoryAPIURL | ConvertFrom-Json
+            Write-Output $repoData.commit.commit.author.date > versiondate.txt
             Remove-Item "arcupdater-master"
             [System.Windows.MessageBox]::Show($config.langResources.arcUdaterUpdatedMsgbox)
         }

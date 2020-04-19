@@ -28,9 +28,9 @@ $systemGlob = New-Object system.globalization.cultureinfo($config.ArcUpdater.cul
 
 if (Test-Path versiondate.txt -PathType Leaf){
     $versionDate = get-content versiondate.txt
-    $localVersionDate = [datetime]::ParseExact($versionDate, "yyyy-MM-ddTHH:mm:ssZ" , $systemGlob) 
+    $localVersionDate = [datetime]::ParseExact($versionDate, "yyyy-MM-ddTHH:mm:ss" , $systemGlob) 
 } else {
-    $localVersionDate = get-date -format "yyyy-MM-ddTHH:mm:ssZ"
+    $localVersionDate = get-date -format "yyyy-MM-ddTHH:mm:ss"
     Write-Output $localVersionDate > versiondate.txt
 }
 

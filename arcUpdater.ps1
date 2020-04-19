@@ -23,10 +23,10 @@ function  newVersionAtGit($repoAPIURL, $localVersionDate){
     
 }
 
-$config= get-content .\arcUpdater.ini | ConvertFrom-Json
+$config = get-content arcUpdater.ini | ConvertFrom-Json
 $systemGlob = New-Object system.globalization.cultureinfo($config.ArcUpdater.culture)
-
-$localVersionDate = [datetime]::ParseExact($config.ArcUpdater.versionDate, "yyyy-MM-dd HH:mm" , $systemGlob) 
+$versionDate = get-content versiondate.txt
+$localVersionDate = [datetime]::ParseExact($versionDate, "yyyy-MM-ddTHH:mm:ssZ" , $systemGlob) 
 
 if (newVersionAtGit $config.ArcUpdater.repositoryAPIURL $localVersionDate){
     
@@ -37,6 +37,9 @@ if (newVersionAtGit $config.ArcUpdater.repositoryAPIURL $localVersionDate){
             Expand-Archive -Path $config.ArcUpdater.fileName -DestinationPath "." -Force
             Remove-Item $config.ArcUpdater.fileName
             Move-Item  -path "arcupdater-master\*" -destination "." -Force
+            $repoData = Invoke-WebRequest -Uri $repoAPIURL | ConvertFrom-Json
+            Write-Output $repoData.commit.commit.author.date  > versiondate.txt
+            Remove-Item "arcupdater-master"
             [System.Windows.MessageBox]::Show($config.langResources.arcUdaterUpdatedMsgbox)
         }
         'Cancel' {

@@ -25,8 +25,13 @@ function  newVersionAtGit($repoAPIURL, $localVersionDate){
 
 $config = get-content arcUpdater.ini | ConvertFrom-Json
 $systemGlob = New-Object system.globalization.cultureinfo($config.ArcUpdater.culture)
-$versionDate = get-content versiondate.txt
-$localVersionDate = [datetime]::ParseExact($versionDate, "yyyy-MM-ddTHH:mm:ssZ" , $systemGlob) 
+
+if (Test-Path versiondate.txt -PathType Leaf){
+    $versionDate = get-content versiondate.txt
+    $localVersionDate = [datetime]::ParseExact($versionDate, "yyyy-MM-ddTHH:mm:ssZ" , $systemGlob) 
+}
+
+
 
 if (newVersionAtGit $config.ArcUpdater.repositoryAPIURL $localVersionDate){
     
@@ -79,4 +84,4 @@ if (newVersionAtRepo $repoURL $fileName $pattern $datePattern $localVersionDate)
         }
     }    
 }
-[System.Diagnostics.Process]::Start("$PSScriptRoot\..\Gw2-64.exe")
+#[System.Diagnostics.Process]::Start("$PSScriptRoot\..\Gw2-64.exe")

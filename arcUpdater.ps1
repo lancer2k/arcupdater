@@ -14,40 +14,30 @@ function  newVersionAtRepo($repoUrl,$file,$pattern,$datePattern,$localVersionDat
     
 }
 
-function  newVersionAtGit($repoAPIURL, $localVersionDate){
+function  newVersionAtGit($repoAPIURL, $localVersion){
     #Get Date from last version of the file in the repo
     $repoData = Invoke-WebRequest -Uri $repoAPIURL | ConvertFrom-Json
-    $lastVersionDate = [datetime]::ParseExact($repoData.commit.commit.author.date, 'yyyy-MM-ddTHH:mm:ssZ', $systemGlob)
-
-    return $localVersionDate -lt $lastVersionDate;
+    return $localVersion -lt $repoData.tag_name;
     
 }
 
 $config = get-content arcUpdater.ini | ConvertFrom-Json
 $systemGlob = New-Object system.globalization.cultureinfo($config.ArcUpdater.culture)
 
-if (Test-Path versiondate.txt -PathType Leaf){
-    $versionDate = get-content versiondate.txt
-    $localVersionDate = [datetime]::ParseExact($versionDate, "yyyy-MM-ddTHH:mm:ss" , $systemGlob) 
-} else {
-    $localVersionDate = get-date -format "yyyy-MM-ddTHH:mm:ss"
-    Write-Output $localVersionDate > versiondate.txt
-}
 
 
-
-if (newVersionAtGit $config.ArcUpdater.repositoryAPIURL $localVersionDate){
+if (newVersionAtGit $config.ArcUpdater.repositoryAPIURL $config.ArcUpdater.version){
     
     $updateAnswer = [System.Windows.MessageBox]::Show($config.langResources.arcUdaterNewVersionMsgboxQuestion,$config.langResources.arcUdaterNewVersionMsgboxTitle,'YesNoCancel')
     Switch ($updateAnswer) {
         'Yes' {
-            Invoke-WebRequest -Uri $config.ArcUpdater.repositoryZIPURL -OutFile $config.ArcUpdater.fileName
+            $repoData = Invoke-WebRequest -Uri $config.ArcUpdater.repositoryAPIURL | ConvertFrom-Json
+            Invoke-WebRequest -Uri $repoData.zipball_url -OutFile $config.ArcUpdater.fileName
             Expand-Archive -Path $config.ArcUpdater.fileName -DestinationPath "." -Force
             Remove-Item $config.ArcUpdater.fileName
-            Move-Item  -path "arcupdater-master\*" -destination "." -Force
-            $repoData = Invoke-WebRequest -Uri $config.ArcUpdater.repositoryAPIURL | ConvertFrom-Json
-            Write-Output $repoData.commit.commit.author.date > versiondate.txt
-            Remove-Item "arcupdater-master"
+            Move-Item  -path "lancer2k-arcupdater-*" -destination "lancer2k-arcupdater" -Force
+            Move-Item  -path "lancer2k-arcupdater\*" -destination "." -Force
+            Remove-Item "lancer2k-arcupdater" -Recurse
             [System.Windows.MessageBox]::Show($config.langResources.arcUdaterUpdatedMsgbox)
         }
         'Cancel' {
@@ -87,4 +77,4 @@ if (newVersionAtRepo $repoURL $fileName $pattern $datePattern $localVersionDate)
         }
     }    
 }
-#[System.Diagnostics.Process]::Start("$PSScriptRoot\..\Gw2-64.exe")
+[System.Diagnostics.Process]::Start("$PSScriptRoot\..\Gw2-64.exe")

@@ -118,9 +118,16 @@ $oldVersionFolder = $config.ArcUpdater.oldVersionPath;
 $localArcDllFolderPath = "$PSScriptRoot\..\bin64\"
 $localArcDllOldVersionFolderPath = "$PSScriptRoot\$oldVersionFolder\"
 $localArcDllFilePath = "$localArcDllFolderPath$fileName"
-$localVersionDate = (Get-Item $localArcDllFilePath).LastWriteTime 
 
-if (newVersionAtRepo $repoURL $fileName $pattern $datePattern $localVersionDate){
+$downloadNewVersion = $true
+if (Test-Path $localArcDllFilePath){
+    $localVersionDate = (Get-Item $localArcDllFilePath).LastWriteTime 
+    $downloadNewVersion = newVersionAtRepo $repoURL $fileName $pattern $datePattern $localVersionDate
+}
+
+
+
+if ( $downloadNewVersion ){
     $objSumaryLabel.Text += "`nNew ArcDPS Version found ... "
     $updateAnswer = [System.Windows.MessageBox]::Show($config.langResources.arcDPSNewVersionMsgboxQuestion,$config.langResources.arcDPSNewVersionMsgboxTitle,'YesNoCancel')
     Switch ($updateAnswer) {

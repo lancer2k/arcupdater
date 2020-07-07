@@ -2,7 +2,8 @@ Add-Type -AssemblyName PresentationCore,PresentationFramework
 
 function  newVersionAtRepo($repoUrl,$file,$pattern,$datePattern,$localVersionDate){
     #Get Date from last version of the file in the repo
-    $objSumaryLabel.Text += "`nChecking for ArcDPS updates ... "
+    $objSumaryLabel.Text += "`n"
+    $objSumaryLabel.Text += $global:config.langResources.arcDPSCheckingNewVersionMessage
     
     try { 
         $r = Invoke-WebRequest -Uri $repoUrl
@@ -25,7 +26,8 @@ function  newVersionAtRepo($repoUrl,$file,$pattern,$datePattern,$localVersionDat
 
 function  newVersionAtGit($repoAPIURL, $localVersion){
     #Get Date from last version of the file in the repo
-    $objSumaryLabel.Text += "`nChecking for ArcUpdater updates ... "
+    $objSumaryLabel.Text += "`n"
+    $objSumaryLabel.Text += $global:config.langResources.arcUdaterCheckingNewVersionMessage
     
     try { 
         $repoData = Invoke-WebRequest -Uri $repoAPIURL | ConvertFrom-Json  
@@ -40,8 +42,54 @@ function  newVersionAtGit($repoAPIURL, $localVersion){
     
 }
 
-$config = get-content arcUpdater.ini | ConvertFrom-Json
-$systemGlob = New-Object system.globalization.cultureinfo($config.ArcUpdater.culture)
+function loadGuildWars2(){
+    $objSumaryLabel.Text += "`n"
+    $objSumaryLabel.Text += $global:config.langResources.loadingGWMessage
+    Start-Sleep -Seconds 1.5
+    $objForm.Show()
+    [System.Diagnostics.Process]::Start("$PSScriptRoot\..\Gw2-64.exe")
+}
+
+function Test-ControlKey
+{
+  # key code for Ctrl key:
+  $key = 17    
+    
+  # this is the c# definition of a static Windows API method:
+  $Signature = @'
+    [DllImport("user32.dll", CharSet=CharSet.Auto, ExactSpelling=true)] 
+    public static extern short GetAsyncKeyState(int virtualKeyCode); 
+'@
+
+  Add-Type -MemberDefinition $Signature -Name Keyboard -Namespace PsOneApi
+  [bool]([PsOneApi.Keyboard]::GetAsyncKeyState($key) -eq -32767)
+}
+
+function ArcDPSCanceling() {
+    $loadArcDPS = $true
+    Write-Host $global:config.langResources.arcDPSCancelingMessage -NoNewline
+    $timeout = new-timespan -Seconds $global:config.ArcUpdater.AvoidLoadingArcDPSSeconds
+    $sw = [diagnostics.stopwatch]::StartNew()
+
+    while ($sw.elapsed -lt $timeout){
+        Write-Host '.' -NoNewline
+        $pressed = Test-ControlKey
+        if ($pressed) {
+            $loadArcDPS = $false
+            break
+        }        
+        # write a dot and wait a second
+        Start-Sleep -Seconds 1
+    } 
+    
+    return $loadArcDPS
+    
+}
+
+$global:config = get-content arcUpdater.ini | ConvertFrom-Json
+$systemGlob = New-Object system.globalization.cultureinfo($global:config.ArcUpdater.culture)
+
+$loadArcDPS = ArcDPSCanceling
 
 [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
 [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Drawing")
@@ -84,20 +132,22 @@ $objForm.Controls.Add($objSumaryLabel)
 
 $objForm.Show()
 
-if (newVersionAtGit $config.ArcUpdater.repositoryAPIURL $config.ArcUpdater.version){
-    $objSumaryLabel.Text += "`nNew ArcUpdate version found ... "
-    $updateAnswer = [System.Windows.MessageBox]::Show($config.langResources.arcUdaterNewVersionMsgboxQuestion,$config.langResources.arcUdaterNewVersionMsgboxTitle,'YesNoCancel')
+if (newVersionAtGit $global:config.ArcUpdater.repositoryAPIURL $global:config.ArcUpdater.version){
+    $objSumaryLabel.Text += "`n"
+    $objSumaryLabel.Text += $global:config.langResources.arcUdaterNewVersionMessage
+    $updateAnswer = [System.Windows.MessageBox]::Show($global:config.langResources.arcUdaterNewVersionMsgboxQuestion,$global:config.langResources.arcUdaterNewVersionMsgboxTitle,'YesNoCancel')
     Switch ($updateAnswer) {
         'Yes' {
-            $objSumaryLabel.Text += "`nUPDATING"
-            $repoData = Invoke-WebRequest -Uri $config.ArcUpdater.repositoryAPIURL | ConvertFrom-Json
-            Invoke-WebRequest -Uri $repoData.zipball_url -OutFile $config.ArcUpdater.fileName
-            Expand-Archive -Path $config.ArcUpdater.fileName -DestinationPath "." -Force
-            Remove-Item $config.ArcUpdater.fileName
+            $objSumaryLabel.Text += "`n"
+            $objSumaryLabel.Text += $global:config.langResources.updatingMessage
+            $repoData = Invoke-WebRequest -Uri $global:config.ArcUpdater.repositoryAPIURL | ConvertFrom-Json
+            Invoke-WebRequest -Uri $repoData.zipball_url -OutFile $global:config.ArcUpdater.fileName
+            Expand-Archive -Path $global:config.ArcUpdater.fileName -DestinationPath "." -Force
+            Remove-Item $global:config.ArcUpdater.fileName
             Move-Item  -path "lancer2k-arcupdater-*" -destination "lancer2k-arcupdater" -Force
             Move-Item  -path "lancer2k-arcupdater\*" -destination "." -Force
             Remove-Item "lancer2k-arcupdater" -Recurse
-            [System.Windows.MessageBox]::Show($config.langResources.arcUdaterUpdatedMsgbox)
+            [System.Windows.MessageBox]::Show($global:config.langResources.arcUdaterUpdatedMsgbox)
         }
         'Cancel' {
             $objForm.Close()
@@ -107,46 +157,63 @@ if (newVersionAtGit $config.ArcUpdater.repositoryAPIURL $config.ArcUpdater.versi
 }
 
 
-
-$repoURL = $config.ArcDPS.repositoryURL;
-$fileName = $config.ArcDPS.fileName;
-$pattern =  $config.ArcDPS.htmlPattern;
-$datePattern =  $config.ArcDPS.datePattern;
-$oldVersionFolder = $config.ArcUpdater.oldVersionPath;
+$repoURL = $global:config.ArcDPS.repositoryURL;
+$fileName = $global:config.ArcDPS.fileName;
+$pattern =  $global:config.ArcDPS.htmlPattern;
+$datePattern =  $global:config.ArcDPS.datePattern;
+$oldVersionFolder = $global:config.ArcUpdater.oldVersionPath;
 
 
 $localArcDllFolderPath = "$PSScriptRoot\..\bin64\"
 $localArcDllOldVersionFolderPath = "$PSScriptRoot\$oldVersionFolder\"
+
 $localArcDllFilePath = "$localArcDllFolderPath$fileName"
+$extraCharacter = "_"
+$localArcDllAlternativeFilePath = "$localArcDllFolderPath$fileName$extraCharacter"
 
-$downloadNewVersion = $true
-if (Test-Path $localArcDllFilePath){
-    $localVersionDate = (Get-Item $localArcDllFilePath).LastWriteTime 
-    $downloadNewVersion = newVersionAtRepo $repoURL $fileName $pattern $datePattern $localVersionDate
+if ($loadArcDPS){
+
+    if (Test-Path $localArcDllAlternativeFilePath){
+        Move-Item -path $localArcDllAlternativeFilePath -destination $localArcDllFilePath -Force
+    }
+
+    $downloadNewVersion = $true
+    if (Test-Path $localArcDllFilePath){
+        $localVersionDate = (Get-Item $localArcDllFilePath).LastWriteTime 
+        $downloadNewVersion = newVersionAtRepo $repoURL $fileName $pattern $datePattern $localVersionDate
+    }
+
+
+
+    if ( $downloadNewVersion ){
+        $objSumaryLabel.Text += "`n"
+        $objSumaryLabel.Text += $global:config.langResources.arcDPSNewVersionMessage
+        $updateAnswer = [System.Windows.MessageBox]::Show($global:config.langResources.arcDPSNewVersionMsgboxQuestion,$global:config.langResources.arcDPSNewVersionMsgboxTitle,'YesNoCancel')
+        Switch ($updateAnswer) {
+            'Yes' {
+                $objSumaryLabel.Text += "`n"
+                $objSumaryLabel.Text += $global:config.langResources.updatingMessage
+                $fileURL = "$repoURL$fileName"
+                New-Item -ItemType Directory -Force -Path $localArcDllOldVersionFolderPath
+                Move-Item  -path $localArcDllFilePath -destination $localArcDllOldVersionFolderPath -Force
+                Invoke-WebRequest -Uri $fileURL -OutFile $localArcDllFilePath
+                [System.Windows.MessageBox]::Show($global:config.langResources.arcDPSUpdatedMsgbox)
+
+            }
+            'Cancel' {
+                $objForm.Close()
+                Exit
+            }
+        }    
+    }
+}else{
+    $objSumaryLabel.Text += "`n"
+    $objSumaryLabel.Text += $global:config.langResources.avoidArcDPSLoadingMessage
+    $objForm.Show()
+    if (Test-Path $localArcDllFilePath){
+        Move-Item  -path $localArcDllFilePath -destination $localArcDllAlternativeFilePath -Force
+    }
 }
 
+loadGuildWars2
 
-
-if ( $downloadNewVersion ){
-    $objSumaryLabel.Text += "`nNew ArcDPS Version found ... "
-    $updateAnswer = [System.Windows.MessageBox]::Show($config.langResources.arcDPSNewVersionMsgboxQuestion,$config.langResources.arcDPSNewVersionMsgboxTitle,'YesNoCancel')
-    Switch ($updateAnswer) {
-        'Yes' {
-            $objSumaryLabel.Text += "`nUPDATING"
-            $fileURL = "$repoURL$fileName"
-            New-Item -ItemType Directory -Force -Path $localArcDllOldVersionFolderPath
-            Move-Item  -path $localArcDllFilePath -destination $localArcDllOldVersionFolderPath -Force
-            Invoke-WebRequest -Uri $fileURL -OutFile $localArcDllFilePath
-            [System.Windows.MessageBox]::Show($config.langResources.arcDPSUpdatedMsgbox)
-
-        }
-        'Cancel' {
-            $objForm.Close()
-            Exit
-        }
-    }    
-}
-$objSumaryLabel.Text += "`nLoading Guild Wars 2 ... "
-Start-Sleep -Seconds 1.5
-$objForm.Show()
-[System.Diagnostics.Process]::Start("$PSScriptRoot\..\Gw2-64.exe")

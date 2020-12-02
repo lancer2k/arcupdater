@@ -7,11 +7,15 @@ function  newVersionAtRepo($repoUrl,$file,$pattern,$datePattern,$localVersionDat
     
     try { 
         $r = Invoke-WebRequest -Uri $repoUrl
-        $content = $r.ParsedHtml.getElementsByTagName("pre")[0].innerText
+        $index = 0
+        foreach ($line in $r.ParsedHtml.getElementsByClassName("indexcolname")){
+            $str = $line.innerText.Trim()
+            if ($str -like ($file)){
+                $lastVersionDateString = $r.ParsedHtml.getElementsByClassName("indexcollastmod")[$index].innerText.Trim()
+            }
+            $index++
+        }
     
-        $result = [Regex]::Matches($content,$pattern)
-        $lastVersionDateString = $result.Groups[1].Value
-
         $lastVersionDate = [datetime]::ParseExact($lastVersionDateString, $datePattern , $systemGlob)
         $objSumaryLabel.Text += "OK"
         return $localVersionDate -lt $lastVersionDate;
